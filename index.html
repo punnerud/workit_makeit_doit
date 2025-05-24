@@ -337,9 +337,9 @@
             <button class="sound-button active" data-sound="workit.m4a">Work It</button>
             <button class="sound-button active" data-sound="makeit.m4a">Make It</button>
             <button class="sound-button active" data-sound="doit.m4a">Do It</button>
-            <button class="sound-button inactive">Makes Us</button>
-            <button class="sound-button inactive">Harder</button>
-            <button class="sound-button inactive">Better</button>
+            <button class="sound-button active" data-sound="makesus.m4a">Makes Us</button>
+            <button class="sound-button active" data-sound="harder.m4a">Harder</button>
+            <button class="sound-button active" data-sound="better.m4a">Better</button>
             <button class="sound-button inactive">Faster</button>
             <button class="sound-button inactive">Stronger</button>
             <button class="sound-button inactive">More Than Ever</button>
@@ -426,6 +426,15 @@
                             break;
                         case '3':
                             this.playSound(this.soundButtons[2]);
+                            break;
+                        case '4':
+                            this.playSound(this.soundButtons[3]);
+                            break;
+                        case '5':
+                            this.playSound(this.soundButtons[4]);
+                            break;
+                        case '6':
+                            this.playSound(this.soundButtons[5]);
                             break;
                     }
                 });
