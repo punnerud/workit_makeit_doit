@@ -456,13 +456,19 @@
                     const audio = new Audio(soundFile);
                     audio.volume = 0.7;
                     
-                    // When audio loads, set up auto-stop before the end to avoid system sounds
-                    audio.addEventListener('loadedmetadata', () => {
-                        const stopTime = Math.max(0, (audio.duration - 0.1) * 1000); // Stop 0.1s before end
-                        setTimeout(() => {
-                            audio.pause();
-                        }, stopTime);
-                    });
+                    // Detect if browser is Chrome (which adds artifacts at the end)
+                    const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+                    
+                    // Only cut audio on Chrome to avoid system sounds
+                    if (isChrome) {
+                        // When audio loads, set up auto-stop before the end to avoid system sounds
+                        audio.addEventListener('loadedmetadata', () => {
+                            const stopTime = Math.max(0, (audio.duration - 0.1) * 1000); // Stop 0.1s before end
+                            setTimeout(() => {
+                                audio.pause();
+                            }, stopTime);
+                        });
+                    }
                     
                     audio.play().catch(e => console.log('Sound play failed:', e));
                     
