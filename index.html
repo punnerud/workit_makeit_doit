@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daft Punk Music Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(45deg, #000, #111, #222);
+            background-size: 400% 400%;
+            animation: gradientShift 8s ease infinite;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .title {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 2rem;
+            text-align: center;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
+            background-size: 400% 400%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 3s ease infinite;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+        }
+
+        .music-player {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .control-btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(45deg, #333, #555);
+            color: #fff;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 255, 255, 0.2);
+        }
+
+        .control-btn.active {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+        }
+
+        .sound-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            max-width: 800px;
+        }
+
+        .sound-button {
+            width: 200px;
+            height: 200px;
+            border: none;
+            border-radius: 20px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .sound-button.active {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1);
+            background-size: 400% 400%;
+            animation: gradientShift 2s ease infinite;
+            color: #fff;
+            box-shadow: 0 0 30px rgba(255, 107, 107, 0.6);
+        }
+
+        .sound-button.inactive {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .sound-button:not(.inactive):hover {
+            transform: scale(1.05) translateY(-5px);
+            box-shadow: 0 10px 30px rgba(255, 255, 255, 0.3);
+        }
+
+        .sound-button.playing {
+            animation: pulse 0.6s ease;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .visualizer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 3px;
+            padding: 20px;
+        }
+
+        .bar {
+            width: 4px;
+            background: linear-gradient(to top, #ff6b6b, #4ecdc4, #45b7d1);
+            border-radius: 2px;
+            animation: wave 1s ease-in-out infinite;
+        }
+
+        @keyframes wave {
+            0%, 100% { height: 10px; }
+            50% { height: 50px; }
+        }
+
+        .volume-control {
+            margin-top: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .volume-slider {
+            width: 200px;
+            height: 8px;
+            border-radius: 4px;
+            background: #333;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="title">DAFT PUNK PLAYER</div>
+    
+    <div class="music-player">
+        <div class="controls">
+            <button class="control-btn" id="playPauseBtn">Play Background</button>
+            <button class="control-btn" id="stopBtn">Stop All</button>
+        </div>
+
+        <div class="sound-grid">
+            <button class="sound-button active" data-sound="workit.m4a">Work It</button>
+            <button class="sound-button active" data-sound="makeit.m4a">Make It</button>
+            <button class="sound-button active" data-sound="doit.m4a">Do It</button>
+            <button class="sound-button inactive">Makes Us</button>
+            <button class="sound-button inactive">Harder</button>
+            <button class="sound-button inactive">Better</button>
+            <button class="sound-button inactive">Faster</button>
+            <button class="sound-button inactive">Stronger</button>
+            <button class="sound-button inactive">More Than Ever</button>
+        </div>
+
+        <div class="volume-control">
+            <span>Volume:</span>
+            <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" value="50">
+            <span id="volumeValue">50%</span>
+        </div>
+    </div>
+
+    <div class="visualizer">
+        <div class="bar" style="animation-delay: 0s;"></div>
+        <div class="bar" style="animation-delay: 0.1s;"></div>
+        <div class="bar" style="animation-delay: 0.2s;"></div>
+        <div class="bar" style="animation-delay: 0.3s;"></div>
+        <div class="bar" style="animation-delay: 0.4s;"></div>
+        <div class="bar" style="animation-delay: 0.5s;"></div>
+        <div class="bar" style="animation-delay: 0.6s;"></div>
+        <div class="bar" style="animation-delay: 0.7s;"></div>
+        <div class="bar" style="animation-delay: 0.8s;"></div>
+        <div class="bar" style="animation-delay: 0.9s;"></div>
+        <div class="bar" style="animation-delay: 1s;"></div>
+        <div class="bar" style="animation-delay: 1.1s;"></div>
+        <div class="bar" style="animation-delay: 1.2s;"></div>
+        <div class="bar" style="animation-delay: 1.3s;"></div>
+        <div class="bar" style="animation-delay: 1.4s;"></div>
+    </div>
+
+    <script>
+        class MusicPlayer {
+            constructor() {
+                this.backgroundAudio = new Audio('background.m4a');
+                this.backgroundAudio.loop = true;
+                this.backgroundAudio.volume = 0.3;
+                
+                this.isBackgroundPlaying = false;
+                
+                this.initializeElements();
+                this.bindEvents();
+            }
+
+            initializeElements() {
+                this.playPauseBtn = document.getElementById('playPauseBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                this.volumeSlider = document.getElementById('volumeSlider');
+                this.volumeValue = document.getElementById('volumeValue');
+                this.soundButtons = document.querySelectorAll('.sound-button.active');
+            }
+
+            bindEvents() {
+                this.playPauseBtn.addEventListener('click', () => this.toggleBackground());
+                this.stopBtn.addEventListener('click', () => this.stopAll());
+                
+                this.volumeSlider.addEventListener('input', (e) => this.updateVolume(e.target.value));
+                
+                this.soundButtons.forEach(button => {
+                    button.addEventListener('click', () => this.playSound(button));
+                });
+
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    switch(e.key.toLowerCase()) {
+                        case ' ':
+                            e.preventDefault();
+                            this.toggleBackground();
+                            break;
+                        case 'escape':
+                            this.stopAll();
+                            break;
+                        case '1':
+                            this.playSound(this.soundButtons[0]);
+                            break;
+                        case '2':
+                            this.playSound(this.soundButtons[1]);
+                            break;
+                        case '3':
+                            this.playSound(this.soundButtons[2]);
+                            break;
+                    }
+                });
+            }
+
+            toggleBackground() {
+                if (this.isBackgroundPlaying) {
+                    this.backgroundAudio.pause();
+                    this.playPauseBtn.textContent = 'Play Background';
+                    this.playPauseBtn.classList.remove('active');
+                } else {
+                    this.backgroundAudio.play().catch(e => console.log('Background play failed:', e));
+                    this.playPauseBtn.textContent = 'Pause Background';
+                    this.playPauseBtn.classList.add('active');
+                }
+                this.isBackgroundPlaying = !this.isBackgroundPlaying;
+            }
+
+            playSound(button) {
+                if (!button.classList.contains('active')) return;
+                
+                const soundFile = button.dataset.sound;
+                if (soundFile) {
+                    // Create a new audio instance for each button press to allow overlapping
+                    const audio = new Audio(soundFile);
+                    audio.volume = (this.volumeSlider.value / 100) * 0.7;
+                    
+                    // When audio loads, set up auto-stop before the end to avoid system sounds
+                    audio.addEventListener('loadedmetadata', () => {
+                        const stopTime = Math.max(0, (audio.duration - 0.1) * 1000); // Stop 0.1s before end
+                        setTimeout(() => {
+                            audio.pause();
+                        }, stopTime);
+                    });
+                    
+                    audio.play().catch(e => console.log('Sound play failed:', e));
+                    
+                    // Visual feedback
+                    button.classList.add('playing');
+                    setTimeout(() => button.classList.remove('playing'), 600);
+                }
+            }
+
+            stopAll() {
+                this.backgroundAudio.pause();
+                this.backgroundAudio.currentTime = 0;
+                this.isBackgroundPlaying = false;
+                this.playPauseBtn.textContent = 'Play Background';
+                this.playPauseBtn.classList.remove('active');
+            }
+
+            updateVolume(value) {
+                const volume = value / 100;
+                this.backgroundAudio.volume = volume * 0.3;
+                this.volumeValue.textContent = `${value}%`;
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const player = new MusicPlayer();
+            
+            // Add some extra visual flair
+            const bars = document.querySelectorAll('.bar');
+            setInterval(() => {
+                bars.forEach(bar => {
+                    const height = Math.random() * 60 + 10;
+                    bar.style.height = `${height}px`;
+                });
+            }, 200);
+        });
+    </script>
+</body>
+</html> 
