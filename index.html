@@ -368,8 +368,11 @@
                 this.backgroundAudio.volume = 0.3;
                 
                 this.isBackgroundPlaying = false;
+                this.audioCache = new Map(); // Cache for preloaded audio
+                this.isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
                 
                 this.initializeElements();
+                this.preloadAllAudio();
                 this.bindEvents();
             }
 
@@ -377,6 +380,67 @@
                 this.playPauseBtn = document.getElementById('playPauseBtn');
                 this.stopBtn = document.getElementById('stopBtn');
                 this.soundButtons = document.querySelectorAll('.sound-button.active');
+            }
+
+            preloadAllAudio() {
+                // Get all sound files from active buttons
+                const soundFiles = [
+                    'workit.m4a', 'makeit.m4a', 'doit.m4a', 'makesus.m4a',
+                    'harder.m4a', 'better.m4a', 'faster.m4a', 'stronger.m4a', 
+                    'morethan.m4a', 'power.m4a', 'never.m4a'
+                ];
+
+                soundFiles.forEach(soundFile => {
+                    // Create multiple instances for overlapping
+                    const audioInstances = [];
+                    for (let i = 0; i < 5; i++) { // 5 instances for overlapping
+                        const audio = new Audio(soundFile);
+                        audio.volume = 0.7;
+                        audio.preload = 'auto';
+                        
+                        // Only cut audio on Chrome to avoid system sounds
+                        if (this.isChrome) {
+                            audio.addEventListener('loadedmetadata', () => {
+                                const stopTime = Math.max(0, (audio.duration - 0.1) * 1000); // Stop 0.1s before end
+                                audio.addEventListener('play', () => {
+                                    setTimeout(() => {
+                                        audio.pause();
+                                        audio.currentTime = 0; // Reset for reuse
+                                    }, stopTime);
+                                });
+                            });
+                        }
+                        
+                        // Preload the audio
+                        audio.load();
+                        audioInstances.push(audio);
+                    }
+                    this.audioCache.set(soundFile, audioInstances);
+                });
+
+                // Preload background audio
+                this.backgroundAudio.preload = 'auto';
+                this.backgroundAudio.load();
+            }
+
+            getAvailableAudio(soundFile) {
+                const instances = this.audioCache.get(soundFile);
+                if (!instances) return null;
+
+                // Find an available (not playing) instance
+                let availableInstance = instances.find(audio => audio.paused);
+                
+                // If all are playing, use the first one (will reset and play)
+                if (!availableInstance) {
+                    availableInstance = instances[0];
+                    availableInstance.pause();
+                    availableInstance.currentTime = 0;
+                }
+
+                // Reset to beginning for fresh play
+                availableInstance.currentTime = 0;
+                
+                return availableInstance;
             }
 
             bindEvents() {
@@ -452,29 +516,16 @@
                 
                 const soundFile = button.dataset.sound;
                 if (soundFile) {
-                    // Create a new audio instance for each button press to allow overlapping
-                    const audio = new Audio(soundFile);
-                    audio.volume = 0.7;
+                    // Get an available audio instance
+                    const audio = this.getAvailableAudio(soundFile);
                     
-                    // Detect if browser is Chrome (which adds artifacts at the end)
-                    const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
-                    
-                    // Only cut audio on Chrome to avoid system sounds
-                    if (isChrome) {
-                        // When audio loads, set up auto-stop before the end to avoid system sounds
-                        audio.addEventListener('loadedmetadata', () => {
-                            const stopTime = Math.max(0, (audio.duration - 0.1) * 1000); // Stop 0.1s before end
-                            setTimeout(() => {
-                                audio.pause();
-                            }, stopTime);
-                        });
+                    if (audio) {
+                        audio.play().catch(e => console.log('Sound play failed:', e));
+                        
+                        // Visual feedback
+                        button.classList.add('playing');
+                        setTimeout(() => button.classList.remove('playing'), 600);
                     }
-                    
-                    audio.play().catch(e => console.log('Sound play failed:', e));
-                    
-                    // Visual feedback
-                    button.classList.add('playing');
-                    setTimeout(() => button.classList.remove('playing'), 600);
                 }
             }
 
