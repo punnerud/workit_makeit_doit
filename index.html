@@ -385,52 +385,38 @@
                 this.backgroundAudio.volume = 0.3;
                 
                 this.isBackgroundPlaying = false;
-                this.audioBuffers = new Map(); // Store loaded audio data
-                this.audioPool = new Map(); // Pool of audio instances for overlapping
+                this.audioContext = null;
+                this.audioBuffers = new Map(); // Store decoded audio buffers
+                this.loadedFiles = new Set(); // Track which files are loaded
+                this.blobUrls = new Map(); // Store blob URLs for fallback
                 this.isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
                 this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
                 this.isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
                 this.audioUnlocked = false;
-                this.poolsReady = false;
-                this.lastPlayedAudio = new Map(); // Track last played audio for each sound
                 
                 this.initializeElements();
-                this.preloadAllAudio();
                 this.bindEvents();
-                this.setupIOSAudioUnlock();
+                this.setupAudioContext();
+            }
+
+            setupAudioContext() {
+                // Set up immediate simple fallback first
+                this.setupImmediateFallback();
                 
-                // Safari-specific warm-up
-                if (this.isSafari) {
-                    this.setupSafariAudioWarming();
-                }
-            }
-
-            setupSafariAudioWarming() {
-                // Keep audio elements warm by occasionally resetting them
-                setInterval(() => {
-                    this.audioPool.forEach((pool, soundFile) => {
-                        pool.forEach(audio => {
-                            if (audio.paused && audio.currentTime === 0) {
-                                // Warm up the audio element
-                                audio.load();
-                            }
-                        });
-                    });
-                }, 3000); // Every 3 seconds
-            }
-
-            setupIOSAudioUnlock() {
-                if (this.isIOS) {
+                // Set up better fallback in background
+                this.setupFallbackAudio();
+                
+                if (this.isIOS || this.isSafari) {
+                    // Wait for user interaction before creating AudioContext
                     const unlockAudio = () => {
                         if (!this.audioUnlocked) {
-                            const silentAudio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
-                            silentAudio.play().then(() => {
-                                this.audioUnlocked = true;
-                                this.createAudioPools();
-                            }).catch(() => {
-                                this.audioUnlocked = true;
-                                this.createAudioPools();
-                            });
+                            try {
+                                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                                console.log('Audio context unlocked for iOS/Safari');
+                                this.preloadAllAudio();
+                            } catch (error) {
+                                console.error('Failed to create AudioContext:', error);
+                            }
                         }
                         document.removeEventListener('touchstart', unlockAudio);
                         document.removeEventListener('click', unlockAudio);
@@ -439,25 +425,39 @@
                     document.addEventListener('touchstart', unlockAudio, { once: true });
                     document.addEventListener('click', unlockAudio, { once: true });
                 } else {
-                    // For non-iOS devices, create pools after a short delay
-                    setTimeout(() => this.createAudioPools(), 500);
+                    // For desktop browsers, try to create AudioContext
+                    try {
+                        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        console.log('Audio context created for desktop');
+                        this.preloadAllAudio();
+                    } catch (error) {
+                        console.error('Failed to create AudioContext:', error);
+                    }
                 }
             }
 
-            async loadAudioBuffer(url) {
-                try {
-                    const response = await fetch(url);
-                    const arrayBuffer = await response.arrayBuffer();
-                    const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
-                    const blobUrl = URL.createObjectURL(blob);
-                    return blobUrl;
-                } catch (error) {
-                    console.error('Failed to load audio:', url, error);
-                    return url; // Fallback to original URL
-                }
+            setupImmediateFallback() {
+                console.log('Setting up immediate fallback');
+                this.audioUnlocked = true;
+                
+                const soundFiles = [
+                    'sounds/workit.m4a', 'sounds/makeit.m4a', 'sounds/doit.m4a', 'sounds/makesus.m4a',
+                    'sounds/harder.m4a', 'sounds/better.m4a', 'sounds/faster.m4a', 'sounds/stronger.m4a', 
+                    'sounds/morethan.m4a', 'sounds/power.m4a', 'sounds/hour.m4a', 'sounds/never.m4a',
+                    'sounds/ever.m4a', 'sounds/after.m4a', 'sounds/over.m4a'
+                ];
+
+                // Create single audio instance for immediate use
+                soundFiles.forEach(soundFile => {
+                    const audio = new Audio(soundFile);
+                    audio.volume = 0.7;
+                    this.audioBuffers.set(soundFile + '_immediate', audio);
+                });
             }
 
-            async createAudioPools() {
+            async setupFallbackAudio() {
+                console.log('Setting up blob-based fallback audio system');
+                
                 const soundFiles = [
                     'sounds/workit.m4a', 'sounds/makeit.m4a', 'sounds/doit.m4a', 'sounds/makesus.m4a',
                     'sounds/harder.m4a', 'sounds/better.m4a', 'sounds/faster.m4a', 'sounds/stronger.m4a', 
@@ -466,57 +466,94 @@
                 ];
 
                 for (const soundFile of soundFiles) {
-                    // Get the blob URL for this sound file
-                    let audioUrl = this.audioBuffers.get(soundFile);
-                    if (!audioUrl) {
-                        audioUrl = await this.loadAudioBuffer(soundFile);
-                        this.audioBuffers.set(soundFile, audioUrl);
-                    }
+                    try {
+                        // Load the file once as a blob
+                        console.log('Loading blob for:', soundFile);
+                        const response = await fetch(soundFile);
+                        const blob = await response.blob();
+                        const blobUrl = URL.createObjectURL(blob);
+                        this.blobUrls.set(soundFile, blobUrl);
 
-                    // Create pool of audio instances using the same blob URL
-                    const pool = [];
-                    const poolSize = this.isSafari ? 5 : 3; // More instances for Safari
-                    
-                    for (let i = 0; i < poolSize; i++) {
-                        const audio = new Audio(audioUrl);
-                        audio.volume = 0.7;
-                        audio.preload = 'auto';
-                        
-                        // Safari-specific optimizations
-                        if (this.isSafari) {
-                            audio.addEventListener('loadeddata', () => {
-                                // Ensure audio is ready
-                                audio.currentTime = 0;
-                            });
-                            
-                            audio.addEventListener('ended', () => {
-                                // Reset immediately after ending
-                                setTimeout(() => {
-                                    audio.currentTime = 0;
-                                    audio.load();
-                                }, 50);
-                            });
+                        // Create multiple Audio instances using the same blob URL
+                        const audioPool = [];
+                        for (let i = 0; i < 3; i++) {
+                            const audio = new Audio(blobUrl);
+                            audio.volume = 0.7;
+                            audioPool.push(audio);
                         }
                         
-                        // Only cut audio on Chrome to avoid system sounds
-                        if (this.isChrome) {
-                            audio.addEventListener('loadedmetadata', () => {
-                                const stopTime = Math.max(0, (audio.duration - 0.1) * 1000);
-                                audio.addEventListener('play', () => {
-                                    setTimeout(() => {
-                                        audio.pause();
-                                        audio.currentTime = 0;
-                                    }, stopTime);
-                                });
-                            });
-                        }
-                        
-                        pool.push(audio);
+                        // Store pool of audio instances for fallback
+                        this.audioBuffers.set(soundFile + '_fallback', audioPool);
+                        console.log('Blob-based pool ready for:', soundFile);
+                    } catch (error) {
+                        console.error('Failed to load blob for:', soundFile, error);
                     }
-                    this.audioPool.set(soundFile, pool);
                 }
-                this.poolsReady = true;
-                console.log('Audio pools ready');
+                console.log('Blob-based fallback audio system ready');
+            }
+
+            getAvailableFallbackAudio(soundFile) {
+                const audioPool = this.audioBuffers.get(soundFile + '_fallback');
+                if (!audioPool || !Array.isArray(audioPool)) return null;
+
+                // Find an available (paused or ended) audio instance
+                let availableAudio = audioPool.find(audio => audio.paused || audio.ended);
+                
+                if (availableAudio) {
+                    availableAudio.currentTime = 0;
+                    return availableAudio;
+                }
+                
+                // If all are playing, use the first one (will restart)
+                const audio = audioPool[0];
+                audio.pause();
+                audio.currentTime = 0;
+                return audio;
+            }
+
+            async loadAudioFile(url) {
+                if (this.loadedFiles.has(url)) {
+                    return this.audioBuffers.get(url);
+                }
+
+                try {
+                    console.log('Loading audio file:', url);
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    const arrayBuffer = await response.arrayBuffer();
+                    const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+                    
+                    this.audioBuffers.set(url, audioBuffer);
+                    this.loadedFiles.add(url);
+                    console.log('Loaded:', url);
+                    return audioBuffer;
+                } catch (error) {
+                    console.error('Failed to load audio:', url, error);
+                    // Don't return null, let the playSound method handle fallback
+                    return null;
+                }
+            }
+
+            playAudioBuffer(audioBuffer) {
+                if (!audioBuffer || !this.audioContext) return;
+
+                const source = this.audioContext.createBufferSource();
+                const gainNode = this.audioContext.createGain();
+                
+                source.buffer = audioBuffer;
+                gainNode.gain.value = 0.7;
+                
+                source.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+                
+                source.start(0);
+                
+                // Auto-stop for Chrome to avoid system sounds
+                if (this.isChrome && audioBuffer.duration > 0.1) {
+                    source.stop(this.audioContext.currentTime + audioBuffer.duration - 0.1);
+                }
             }
 
             initializeElements() {
@@ -525,8 +562,9 @@
                 this.soundButtons = document.querySelectorAll('.sound-button.active');
             }
 
-            preloadAllAudio() {
-                // Get all sound files from active buttons
+            async preloadAllAudio() {
+                if (!this.audioContext) return;
+
                 const soundFiles = [
                     'sounds/workit.m4a', 'sounds/makeit.m4a', 'sounds/doit.m4a', 'sounds/makesus.m4a',
                     'sounds/harder.m4a', 'sounds/better.m4a', 'sounds/faster.m4a', 'sounds/stronger.m4a', 
@@ -534,86 +572,81 @@
                     'sounds/ever.m4a', 'sounds/after.m4a', 'sounds/over.m4a'
                 ];
 
-                // Load each file asynchronously without blocking
-                soundFiles.forEach(async (soundFile) => {
-                    const blobUrl = await this.loadAudioBuffer(soundFile);
-                    this.audioBuffers.set(soundFile, blobUrl);
-                });
+                // Load files one by one to avoid overwhelming the browser
+                for (const soundFile of soundFiles) {
+                    await this.loadAudioFile(soundFile);
+                    // Small delay to prevent blocking
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
 
-                // Preload background audio
-                this.backgroundAudio.preload = 'auto';
-                this.backgroundAudio.load();
+                console.log('All audio files loaded');
             }
 
-            getAvailableAudio(soundFile) {
-                // Try to get from pool first (for overlapping)
-                const pool = this.audioPool.get(soundFile);
-                if (pool && pool.length > 0) {
-                    // For Safari, try to find a truly ready audio instance
-                    if (this.isSafari) {
-                        // Find an audio that's ready and not recently used
-                        let availableAudio = pool.find(audio => 
-                            (audio.paused || audio.ended) && 
-                            audio.readyState >= 2 && 
-                            audio.currentTime === 0
-                        );
-                        
-                        if (!availableAudio) {
-                            // Find any paused audio
-                            availableAudio = pool.find(audio => audio.paused || audio.ended);
-                        }
-                        
-                        if (availableAudio) {
-                            availableAudio.currentTime = 0;
-                            // Warm up the audio if it seems cold
-                            if (availableAudio.readyState < 2) {
-                                availableAudio.load();
-                            }
-                            return availableAudio;
-                        }
-                        
-                        // Use round-robin for Safari to avoid overusing same instance
-                        const lastIndex = this.lastPlayedAudio.get(soundFile) || 0;
-                        const nextIndex = (lastIndex + 1) % pool.length;
-                        this.lastPlayedAudio.set(soundFile, nextIndex);
-                        
-                        const audio = pool[nextIndex];
-                        audio.pause();
-                        audio.currentTime = 0;
-                        if (audio.readyState < 2) {
-                            audio.load();
-                        }
-                        return audio;
-                    } else {
-                        // Non-Safari logic (original)
-                        let availableAudio = pool.find(audio => audio.paused || audio.ended);
-                        
-                        if (availableAudio) {
-                            availableAudio.currentTime = 0;
-                            return availableAudio;
-                        }
-                        
-                        const audio = pool[0];
-                        audio.pause();
-                        audio.currentTime = 0;
-                        return audio;
+            async playSound(button) {
+                if (!button.classList.contains('active')) return;
+                
+                const soundFile = button.dataset.sound;
+                if (!soundFile) return;
+
+                console.log('Playing sound:', soundFile);
+
+                // Visual feedback
+                button.classList.add('playing');
+                setTimeout(() => button.classList.remove('playing'), 600);
+
+                if (!this.audioUnlocked) {
+                    console.log('Audio not unlocked yet');
+                    return;
+                }
+
+                // Try Web Audio API first if available
+                if (this.audioContext) {
+                    let audioBuffer = this.audioBuffers.get(soundFile);
+                    
+                    if (!audioBuffer && !this.loadedFiles.has(soundFile)) {
+                        console.log('Loading audio buffer for:', soundFile);
+                        audioBuffer = await this.loadAudioFile(soundFile);
+                    }
+
+                    if (audioBuffer) {
+                        this.playAudioBuffer(audioBuffer);
+                        return;
                     }
                 }
-                
-                // Fallback: create a new audio instance from the cached blob URL
-                const blobUrl = this.audioBuffers.get(soundFile);
-                if (blobUrl) {
-                    const audio = new Audio(blobUrl);
-                    audio.volume = 0.7;
-                    audio.currentTime = 0;
-                    return audio;
+
+                // Try blob-based fallback pool
+                const fallbackAudio = this.getAvailableFallbackAudio(soundFile);
+                if (fallbackAudio) {
+                    console.log('Using blob-based fallback for:', soundFile);
+                    fallbackAudio.play().catch(e => {
+                        console.log('Blob-based fallback failed:', e);
+                        this.useImmediateFallback(soundFile);
+                    });
+                    return;
                 }
-                
-                // Last resort: create from original file path
-                const audio = new Audio(soundFile);
-                audio.volume = 0.7;
-                audio.currentTime = 0;
-                return audio;
+
+                // Use immediate fallback
+                this.useImmediateFallback(soundFile);
+            }
+
+            useImmediateFallback(soundFile) {
+                console.log('Using immediate fallback for:', soundFile);
+                const immediateAudio = this.audioBuffers.get(soundFile + '_immediate');
+                if (immediateAudio) {
+                    immediateAudio.currentTime = 0;
+                    immediateAudio.play().catch(e => {
+                        console.log('Immediate fallback failed:', e);
+                        // Last resort: create new audio
+                        const newAudio = new Audio(soundFile);
+                        newAudio.volume = 0.7;
+                        newAudio.play().catch(e2 => console.log('New audio failed:', e2));
+                    });
+                } else {
+                    // Last resort: create new audio
+                    const newAudio = new Audio(soundFile);
+                    newAudio.volume = 0.7;
+                    newAudio.play().catch(e => console.log('New audio failed:', e));
+                }
             }
 
             bindEvents() {
@@ -694,24 +727,6 @@
                     this.playPauseBtn.classList.add('active');
                 }
                 this.isBackgroundPlaying = !this.isBackgroundPlaying;
-            }
-
-            playSound(button) {
-                if (!button.classList.contains('active')) return;
-                
-                const soundFile = button.dataset.sound;
-                if (soundFile) {
-                    // Get an available audio instance
-                    const audio = this.getAvailableAudio(soundFile);
-                    
-                    if (audio) {
-                        audio.play().catch(e => console.log('Sound play failed:', e));
-                        
-                        // Visual feedback
-                        button.classList.add('playing');
-                        setTimeout(() => button.classList.remove('playing'), 600);
-                    }
-                }
             }
 
             stopAll() {
