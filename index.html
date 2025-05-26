@@ -409,63 +409,27 @@
                 ];
 
                 soundFiles.forEach(soundFile => {
-                    // Create one master audio element and preload it
-                    const masterAudio = new Audio(soundFile);
-                    masterAudio.volume = 0.7;
-                    masterAudio.preload = 'auto';
-                    masterAudio.load();
-
-                    // Create multiple instances for overlapping by cloning
-                    const audioInstances = [];
+                    // Create only one audio element per sound file
+                    const audio = new Audio(soundFile);
+                    audio.volume = 0.7;
+                    audio.preload = 'auto';
                     
-                    // Wait for the master audio to load, then create clones
-                    masterAudio.addEventListener('canplaythrough', () => {
-                        for (let i = 0; i < 5; i++) { // 5 instances for overlapping
-                            const audio = masterAudio.cloneNode();
-                            audio.volume = 0.7;
-                            
-                            // Only cut audio on Chrome to avoid system sounds
-                            if (this.isChrome) {
-                                audio.addEventListener('loadedmetadata', () => {
-                                    const stopTime = Math.max(0, (audio.duration - 0.1) * 1000); // Stop 0.1s before end
-                                    audio.addEventListener('play', () => {
-                                        setTimeout(() => {
-                                            audio.pause();
-                                            audio.currentTime = 0; // Reset for reuse
-                                        }, stopTime);
-                                    });
-                                });
-                            }
-                            
-                            audioInstances.push(audio);
-                        }
-                        this.audioCache.set(soundFile, audioInstances);
-                    }, { once: true });
-
-                    // Fallback: if cloneNode doesn't work well, create instances normally but only after master loads
-                    masterAudio.addEventListener('error', () => {
-                        console.log('Fallback: creating separate instances for', soundFile);
-                        for (let i = 0; i < 5; i++) {
-                            const audio = new Audio(soundFile);
-                            audio.volume = 0.7;
-                            audio.preload = 'metadata'; // Use metadata instead of auto for clones
-                            
-                            if (this.isChrome) {
-                                audio.addEventListener('loadedmetadata', () => {
-                                    const stopTime = Math.max(0, (audio.duration - 0.1) * 1000);
-                                    audio.addEventListener('play', () => {
-                                        setTimeout(() => {
-                                            audio.pause();
-                                            audio.currentTime = 0;
-                                        }, stopTime);
-                                    });
-                                });
-                            }
-                            
-                            audioInstances.push(audio);
-                        }
-                        this.audioCache.set(soundFile, audioInstances);
-                    }, { once: true });
+                    // Only cut audio on Chrome to avoid system sounds
+                    if (this.isChrome) {
+                        audio.addEventListener('loadedmetadata', () => {
+                            const stopTime = Math.max(0, (audio.duration - 0.1) * 1000); // Stop 0.1s before end
+                            audio.addEventListener('play', () => {
+                                setTimeout(() => {
+                                    audio.pause();
+                                    audio.currentTime = 0; // Reset for reuse
+                                }, stopTime);
+                            });
+                        });
+                    }
+                    
+                    // Store single audio instance
+                    this.audioCache.set(soundFile, audio);
+                    audio.load();
                 });
 
                 // Preload background audio
@@ -474,29 +438,12 @@
             }
 
             getAvailableAudio(soundFile) {
-                const instances = this.audioCache.get(soundFile);
-                if (!instances) return null;
+                const audio = this.audioCache.get(soundFile);
+                if (!audio) return null;
 
-                // Find an available (not playing) instance
-                let availableInstance = instances.find(audio => audio.paused && audio.readyState >= 2);
-                
-                // If no fully loaded available instance, find any paused one
-                if (!availableInstance) {
-                    availableInstance = instances.find(audio => audio.paused);
-                }
-                
-                // If all are playing, use the first one (will reset and play)
-                if (!availableInstance) {
-                    availableInstance = instances[0];
-                    availableInstance.pause();
-                }
-
-                // Reset to beginning for fresh play (only if not already at start)
-                if (availableInstance.currentTime !== 0) {
-                    availableInstance.currentTime = 0;
-                }
-                
-                return availableInstance;
+                // Always reset to beginning for fresh play
+                audio.currentTime = 0;
+                return audio;
             }
 
             bindEvents() {
