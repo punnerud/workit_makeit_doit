@@ -385,33 +385,79 @@
                 this.backgroundAudio.volume = 0.3;
                 
                 this.isBackgroundPlaying = false;
-                this.audioContext = null;
-                this.audioBuffers = new Map(); // Store audio buffers
+                this.audioCache = new Map(); // Cache for preloaded audio
+                this.audioPool = new Map(); // Pool of audio instances for overlapping
                 this.isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
                 this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-                this.audioInitialized = false;
+                this.audioUnlocked = false;
                 
                 this.initializeElements();
                 this.preloadAllAudio();
                 this.bindEvents();
+                this.setupIOSAudioUnlock();
             }
 
-            async initializeAudioContext() {
-                if (this.audioContext) return;
-                
-                try {
-                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    
-                    // Resume audio context if suspended (iOS requirement)
-                    if (this.audioContext.state === 'suspended') {
-                        await this.audioContext.resume();
-                    }
-                    
-                    this.audioInitialized = true;
-                } catch (error) {
-                    console.log('Web Audio API not supported, falling back to HTML5 audio');
-                    this.audioInitialized = false;
+            setupIOSAudioUnlock() {
+                if (this.isIOS) {
+                    // Create a function to unlock audio on first user interaction
+                    const unlockAudio = () => {
+                        if (!this.audioUnlocked) {
+                            // Play and immediately pause a silent audio to unlock iOS audio
+                            const silentAudio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
+                            silentAudio.play().then(() => {
+                                this.audioUnlocked = true;
+                                this.createAudioPools();
+                            }).catch(() => {
+                                // Fallback for older iOS versions
+                                this.audioUnlocked = true;
+                                this.createAudioPools();
+                            });
+                        }
+                        // Remove the event listeners after first interaction
+                        document.removeEventListener('touchstart', unlockAudio);
+                        document.removeEventListener('click', unlockAudio);
+                    };
+
+                    document.addEventListener('touchstart', unlockAudio, { once: true });
+                    document.addEventListener('click', unlockAudio, { once: true });
+                } else {
+                    // For non-iOS devices, create pools immediately
+                    this.createAudioPools();
                 }
+            }
+
+            createAudioPools() {
+                const soundFiles = [
+                    'sounds/workit.m4a', 'sounds/makeit.m4a', 'sounds/doit.m4a', 'sounds/makesus.m4a',
+                    'sounds/harder.m4a', 'sounds/better.m4a', 'sounds/faster.m4a', 'sounds/stronger.m4a', 
+                    'sounds/morethan.m4a', 'sounds/power.m4a', 'sounds/hour.m4a', 'sounds/never.m4a',
+                    'sounds/ever.m4a', 'sounds/after.m4a', 'sounds/over.m4a'
+                ];
+
+                soundFiles.forEach(soundFile => {
+                    const pool = [];
+                    for (let i = 0; i < 3; i++) { // 3 instances for overlapping
+                        const audio = new Audio(soundFile);
+                        audio.volume = 0.7;
+                        audio.preload = 'auto';
+                        
+                        // Only cut audio on Chrome to avoid system sounds
+                        if (this.isChrome) {
+                            audio.addEventListener('loadedmetadata', () => {
+                                const stopTime = Math.max(0, (audio.duration - 0.1) * 1000);
+                                audio.addEventListener('play', () => {
+                                    setTimeout(() => {
+                                        audio.pause();
+                                        audio.currentTime = 0;
+                                    }, stopTime);
+                                });
+                            });
+                        }
+                        
+                        pool.push(audio);
+                    }
+                    this.audioPool.set(soundFile, pool);
+                });
             }
 
             initializeElements() {
@@ -420,10 +466,7 @@
                 this.soundButtons = document.querySelectorAll('.sound-button.active');
             }
 
-            async preloadAllAudio() {
-                // Initialize audio context on first user interaction
-                await this.initializeAudioContext();
-                
+            preloadAllAudio() {
                 // Get all sound files from active buttons
                 const soundFiles = [
                     'sounds/workit.m4a', 'sounds/makeit.m4a', 'sounds/doit.m4a', 'sounds/makesus.m4a',
@@ -432,113 +475,49 @@
                     'sounds/ever.m4a', 'sounds/after.m4a', 'sounds/over.m4a'
                 ];
 
-                // Load audio buffers for Web Audio API
-                if (this.audioContext) {
-                    for (const soundFile of soundFiles) {
-                        try {
-                            const response = await fetch(soundFile);
-                            const arrayBuffer = await response.arrayBuffer();
-                            const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-                            this.audioBuffers.set(soundFile, audioBuffer);
-                        } catch (error) {
-                            console.log('Failed to load', soundFile, 'with Web Audio API');
-                        }
-                    }
-                } else {
-                    // Fallback to HTML5 audio with multiple instances
-                    soundFiles.forEach(soundFile => {
-                        const audioInstances = [];
-                        for (let i = 0; i < 3; i++) { // 3 instances for overlapping
-                            const audio = new Audio(soundFile);
-                            audio.volume = 0.7;
-                            audio.preload = 'auto';
-                            
-                            // iOS-specific fixes
-                            if (this.isIOS) {
-                                audio.load();
-                            }
-                            
-                            audioInstances.push(audio);
-                        }
-                        this.audioBuffers.set(soundFile, audioInstances);
-                    });
-                }
+                soundFiles.forEach(soundFile => {
+                    // Create only one audio element per sound file for initial loading
+                    const audio = new Audio(soundFile);
+                    audio.volume = 0.7;
+                    audio.preload = 'auto';
+                    
+                    // Store single audio instance for fallback
+                    this.audioCache.set(soundFile, audio);
+                    audio.load();
+                });
 
                 // Preload background audio
                 this.backgroundAudio.preload = 'auto';
                 this.backgroundAudio.load();
             }
 
-            async playWebAudioSound(soundFile) {
-                if (!this.audioContext || !this.audioBuffers.has(soundFile)) return false;
-                
-                try {
-                    const audioBuffer = this.audioBuffers.get(soundFile);
-                    const source = this.audioContext.createBufferSource();
-                    const gainNode = this.audioContext.createGain();
+            getAvailableAudio(soundFile) {
+                // Try to get from pool first (for overlapping)
+                const pool = this.audioPool.get(soundFile);
+                if (pool) {
+                    // Find an available audio instance
+                    let availableAudio = pool.find(audio => audio.paused || audio.ended);
                     
-                    source.buffer = audioBuffer;
-                    gainNode.gain.value = 0.7;
-                    
-                    source.connect(gainNode);
-                    gainNode.connect(this.audioContext.destination);
-                    
-                    // Stop audio slightly before end on Chrome to avoid system sounds
-                    if (this.isChrome && audioBuffer.duration > 0.1) {
-                        source.stop(this.audioContext.currentTime + audioBuffer.duration - 0.1);
+                    if (availableAudio) {
+                        availableAudio.currentTime = 0;
+                        return availableAudio;
                     }
                     
-                    source.start(0);
-                    return true;
-                } catch (error) {
-                    console.log('Web Audio playback failed:', error);
-                    return false;
-                }
-            }
-
-            playHTML5Sound(soundFile) {
-                const audioInstances = this.audioBuffers.get(soundFile);
-                if (!audioInstances) return false;
-                
-                // Find an available instance
-                let availableAudio = audioInstances.find(audio => audio.paused);
-                
-                // If all are playing, use the first one
-                if (!availableAudio) {
-                    availableAudio = audioInstances[0];
-                    availableAudio.pause();
+                    // If all are playing, use the first one (will restart)
+                    const audio = pool[0];
+                    audio.pause();
+                    audio.currentTime = 0;
+                    return audio;
                 }
                 
-                availableAudio.currentTime = 0;
-                
-                // iOS-specific: ensure audio can play
-                if (this.isIOS) {
-                    availableAudio.load();
+                // Fallback to single audio cache
+                const audio = this.audioCache.get(soundFile);
+                if (audio) {
+                    audio.currentTime = 0;
+                    return audio;
                 }
                 
-                availableAudio.play().catch(e => console.log('HTML5 audio play failed:', e));
-                return true;
-            }
-
-            async playSound(button) {
-                if (!button.classList.contains('active')) return;
-                
-                // Initialize audio context on first interaction (iOS requirement)
-                if (!this.audioInitialized) {
-                    await this.initializeAudioContext();
-                }
-                
-                const soundFile = button.dataset.sound;
-                if (soundFile) {
-                    // Try Web Audio API first, fallback to HTML5
-                    const success = await this.playWebAudioSound(soundFile) || this.playHTML5Sound(soundFile);
-                    
-                    if (success) {
-                        // Visual feedback
-                        button.classList.add('playing');
-                        setTimeout(() => button.classList.remove('playing'), 600);
-                    }
-                }
+                return null;
             }
 
             bindEvents() {
@@ -619,6 +598,24 @@
                     this.playPauseBtn.classList.add('active');
                 }
                 this.isBackgroundPlaying = !this.isBackgroundPlaying;
+            }
+
+            playSound(button) {
+                if (!button.classList.contains('active')) return;
+                
+                const soundFile = button.dataset.sound;
+                if (soundFile) {
+                    // Get an available audio instance
+                    const audio = this.getAvailableAudio(soundFile);
+                    
+                    if (audio) {
+                        audio.play().catch(e => console.log('Sound play failed:', e));
+                        
+                        // Visual feedback
+                        button.classList.add('playing');
+                        setTimeout(() => button.classList.remove('playing'), 600);
+                    }
+                }
             }
 
             stopAll() {
