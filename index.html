@@ -89,9 +89,9 @@
 
         .sound-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 1.5rem;
-            max-width: 900px;
+            max-width: 1100px;
             justify-items: center;
         }
 
@@ -170,15 +170,15 @@
         }
 
         .qr-code {
-            position: fixed;
-            bottom: 120px;
-            left: 20px;
+            position: relative;
+            margin: 3rem auto 2rem auto;
             background: white;
             padding: 10px;
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
             transition: all 0.3s ease;
             z-index: 1000;
+            width: fit-content;
         }
 
         .qr-code:hover {
@@ -205,7 +205,7 @@
             .sound-grid {
                 grid-template-columns: repeat(3, 1fr);
                 gap: 1.2rem;
-                max-width: 600px;
+                max-width: 650px;
             }
 
             .sound-button {
@@ -251,7 +251,7 @@
             .sound-grid {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 0.8rem;
-                max-width: 240px;
+                max-width: 250px;
             }
 
             .sound-button {
@@ -262,7 +262,7 @@
             }
 
             .qr-code {
-                bottom: 70px;
+                bottom: -30px;
                 left: 10px;
                 padding: 8px;
             }
@@ -310,9 +310,9 @@
             }
 
             .qr-code {
-                bottom: 60px;
-                left: 5px;
-                padding: 6px;
+                bottom: -30px;
+                left: 10px;
+                padding: 8px;
             }
 
             .qr-code img {
