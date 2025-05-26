@@ -342,6 +342,7 @@
             <button class="sound-button active" data-sound="stronger.m4a">Stronger</button>
             <button class="sound-button active" data-sound="morethan.m4a">More Than</button>
             <button class="sound-button active" data-sound="power.m4a">Power</button>
+            <button class="sound-button active" data-sound="hour.m4a">Hour</button>
             <button class="sound-button active" data-sound="never.m4a">Never</button>
         </div>
     </div>
@@ -398,7 +399,7 @@
                 const soundFiles = [
                     'workit.m4a', 'makeit.m4a', 'doit.m4a', 'makesus.m4a',
                     'harder.m4a', 'better.m4a', 'faster.m4a', 'stronger.m4a', 
-                    'morethan.m4a', 'power.m4a', 'never.m4a'
+                    'morethan.m4a', 'power.m4a', 'hour.m4a', 'never.m4a'
                 ];
 
                 soundFiles.forEach(soundFile => {
@@ -508,8 +509,11 @@
                         case '0':
                             this.playSound(this.soundButtons[9]);
                             break;
-                        case 'n':
+                        case 'h':
                             this.playSound(this.soundButtons[10]);
+                            break;
+                        case 'n':
+                            this.playSound(this.soundButtons[11]);
                             break;
                     }
                 });
