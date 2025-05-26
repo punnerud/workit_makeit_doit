@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daft Punk Music Player</title>
+    <link rel="icon" href="data:,">
     <style>
         * {
             margin: 0;
@@ -428,17 +429,23 @@
                 if (!instances) return null;
 
                 // Find an available (not playing) instance
-                let availableInstance = instances.find(audio => audio.paused);
+                let availableInstance = instances.find(audio => audio.paused && audio.readyState >= 2);
+                
+                // If no fully loaded available instance, find any paused one
+                if (!availableInstance) {
+                    availableInstance = instances.find(audio => audio.paused);
+                }
                 
                 // If all are playing, use the first one (will reset and play)
                 if (!availableInstance) {
                     availableInstance = instances[0];
                     availableInstance.pause();
-                    availableInstance.currentTime = 0;
                 }
 
-                // Reset to beginning for fresh play
-                availableInstance.currentTime = 0;
+                // Reset to beginning for fresh play (only if not already at start)
+                if (availableInstance.currentTime !== 0) {
+                    availableInstance.currentTime = 0;
+                }
                 
                 return availableInstance;
             }
