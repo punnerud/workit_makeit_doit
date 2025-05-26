@@ -332,21 +332,21 @@
         </div>
 
         <div class="sound-grid">
-            <button class="sound-button active" data-sound="workit.m4a">Work It</button>
-            <button class="sound-button active" data-sound="makeit.m4a">Make It</button>
-            <button class="sound-button active" data-sound="doit.m4a">Do It</button>
-            <button class="sound-button active" data-sound="makesus.m4a">Makes Us</button>
-            <button class="sound-button active" data-sound="harder.m4a">Harder</button>
-            <button class="sound-button active" data-sound="better.m4a">Better</button>
-            <button class="sound-button active" data-sound="faster.m4a">Faster</button>
-            <button class="sound-button active" data-sound="stronger.m4a">Stronger</button>
-            <button class="sound-button active" data-sound="morethan.m4a">More Than</button>
-            <button class="sound-button active" data-sound="power.m4a">Power</button>
-            <button class="sound-button active" data-sound="hour.m4a">Hour</button>
-            <button class="sound-button active" data-sound="never.m4a">Never</button>
-            <button class="sound-button active" data-sound="ever.m4a">Ever</button>
-            <button class="sound-button active" data-sound="after.m4a">After</button>
-            <button class="sound-button active" data-sound="over.m4a">Over</button>
+            <button class="sound-button active" data-sound="sounds/workit.m4a">Work It</button>
+            <button class="sound-button active" data-sound="sounds/makeit.m4a">Make It</button>
+            <button class="sound-button active" data-sound="sounds/doit.m4a">Do It</button>
+            <button class="sound-button active" data-sound="sounds/makesus.m4a">Makes Us</button>
+            <button class="sound-button active" data-sound="sounds/harder.m4a">Harder</button>
+            <button class="sound-button active" data-sound="sounds/better.m4a">Better</button>
+            <button class="sound-button active" data-sound="sounds/faster.m4a">Faster</button>
+            <button class="sound-button active" data-sound="sounds/stronger.m4a">Stronger</button>
+            <button class="sound-button active" data-sound="sounds/morethan.m4a">More Than</button>
+            <button class="sound-button active" data-sound="sounds/power.m4a">Power</button>
+            <button class="sound-button active" data-sound="sounds/hour.m4a">Hour</button>
+            <button class="sound-button active" data-sound="sounds/never.m4a">Never</button>
+            <button class="sound-button active" data-sound="sounds/ever.m4a">Ever</button>
+            <button class="sound-button active" data-sound="sounds/after.m4a">After</button>
+            <button class="sound-button active" data-sound="sounds/over.m4a">Over</button>
         </div>
     </div>
 
@@ -378,7 +378,7 @@
     <script>
         class MusicPlayer {
             constructor() {
-                this.backgroundAudio = new Audio('background.m4a');
+                this.backgroundAudio = new Audio('sounds/background.m4a');
                 this.backgroundAudio.loop = true;
                 this.backgroundAudio.volume = 0.3;
                 
@@ -400,10 +400,10 @@
             preloadAllAudio() {
                 // Get all sound files from active buttons
                 const soundFiles = [
-                    'workit.m4a', 'makeit.m4a', 'doit.m4a', 'makesus.m4a',
-                    'harder.m4a', 'better.m4a', 'faster.m4a', 'stronger.m4a', 
-                    'morethan.m4a', 'power.m4a', 'hour.m4a', 'never.m4a',
-                    'ever.m4a', 'after.m4a', 'over.m4a'
+                    'sounds/workit.m4a', 'sounds/makeit.m4a', 'sounds/doit.m4a', 'sounds/makesus.m4a',
+                    'sounds/harder.m4a', 'sounds/better.m4a', 'sounds/faster.m4a', 'sounds/stronger.m4a', 
+                    'sounds/morethan.m4a', 'sounds/power.m4a', 'sounds/hour.m4a', 'sounds/never.m4a',
+                    'sounds/ever.m4a', 'sounds/after.m4a', 'sounds/over.m4a'
                 ];
 
                 soundFiles.forEach(soundFile => {
