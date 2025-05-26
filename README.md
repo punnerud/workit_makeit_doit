@@ -1,4 +1,4 @@
-# workit_makeit_doit
+# DAFT PUNK PLAYER
 
 🎵 **Live Demo:** [https://punnerud.github.io/workit_makeit_doit/](https://punnerud.github.io/workit_makeit_doit/)
 
